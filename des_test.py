@@ -27,8 +27,12 @@ class DES:
         return bytes
     def permutationStart(self, block64):
         pass
+    def permutationEnd(self, block64):
+        pass
     def round(self, block64, roundKey):
         pass 
+    def finalSwap(self, block64):
+        pass
     def encrypt(self, plain_text):
         plainBytes = bytearray(plain_text, "utf-8")
         bytes64 = self.convert_to_block64(plainBytes)
