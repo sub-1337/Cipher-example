@@ -28,8 +28,8 @@ class DES:
         return bytes
     def permutationStart(self, block64):
         blockNew = 0
-        for i in range(64):
-            blockNew = blockNew | 1
+        for i in range(0,64):
+            blockNew = blockNew | ((1 << i) & block64)
         return blockNew
     def permutationEnd(self, block64):
         return block64
