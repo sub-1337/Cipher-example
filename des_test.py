@@ -2,7 +2,10 @@
 
 
 class DES:
-
+    permStart = []
+    def __init__(self):
+        for i in range(64):
+            self.permStart.append(i)
     def convert_to_block64(self, bytes):
         while len(bytes) % 4 != 0: # Fill until divideble by 64 bits (8 * 4)
             bytes.append(0x0)
@@ -29,7 +32,7 @@ class DES:
     def permutationStart(self, block64):
         blockNew = 0
         for i in range(0,64):
-            blockNew = blockNew | ((1 << i) & block64)
+            blockNew = blockNew | ((1 << self.permStart[i]) & block64)
         return blockNew
     def permutationEnd(self, block64):
         return block64
