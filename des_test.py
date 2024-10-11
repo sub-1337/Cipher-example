@@ -2,6 +2,7 @@
 
 
 class DES:
+
     def convert_to_block64(self, bytes):
         while len(bytes) % 4 != 0: # Fill until divideble by 64 bits (8 * 4)
             bytes.append(0x0)
@@ -26,9 +27,12 @@ class DES:
             bytes.append((blocks[i] >> 24) % 256)
         return bytes
     def permutationStart(self, block64):
-        pass
+        blockNew = 0
+        for i in range(64):
+            blockNew = blockNew | 1
+        return blockNew
     def permutationEnd(self, block64):
-        pass
+        return block64
     def round(self, block64, roundKey):
         pass 
     def finalSwap(self, block64):
@@ -37,10 +41,22 @@ class DES:
         plainBytes = bytearray(plain_text, "utf-8")
         bytes64 = self.convert_to_block64(plainBytes)
 
+        for i in range(len(bytes64)):
+            bytes64[i] = self.permutationStart(bytes64[i])
+
+        for i in range(len(bytes64)):
+            bytes64[i] = self.permutationEnd(bytes64[i])
+
         bytesOut = self.convert_from_block64(bytes64)
         return bytes(bytesOut)
     def decrypt(self, cypher_text):
         bytes64 = self.convert_to_block64(cypher_text)
+
+        for i in range(len(bytes64)):
+            bytes64[i] = self.permutationStart(bytes64[i])
+
+        for i in range(len(bytes64)):
+            bytes64[i] = self.permutationEnd(bytes64[i])
 
         bytesOut = self.convert_from_block64(bytes64)
         return bytesOut.decode("utf-8")
