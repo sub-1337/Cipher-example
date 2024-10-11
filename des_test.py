@@ -13,6 +13,8 @@ class DES:
             block64 +=  bytes[3 + i] << 24
             bytes64.append(block64)
         return bytes64
+    def convert_from_block64(self, blocks):
+        
     def permutationStart(self, block64):
         pass
     def round(self, block64, roundKey):
