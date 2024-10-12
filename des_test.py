@@ -160,6 +160,7 @@ class DES:
                     (self.getBit(block48,  2 + i) << 2 )  | (self.getBit(block48, 3 + i) << 3 ) | \
                     (self.getBit(block48,  4 + i) << 4 )  | (self.getBit(block48, 5 + i) << 5 )
             sboxNumber = (i // 6)
+            sboxRes = sboxRes << 4
             sboxRes |= self.sboxPart(block6, sboxNumber)
         return sboxRes 
     def ptable(self, block32):
