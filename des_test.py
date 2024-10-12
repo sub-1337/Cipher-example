@@ -18,10 +18,25 @@ class DES:
     35, 3, 43, 11, 51, 19, 59, 27,
     34, 2, 42, 10, 50, 18, 58, 26,
     33, 1, 41, 9,  49, 17, 57, 25]
+    expandArr = [32, 1 ,2  ,3  ,4 , 5,
+                4 , 5 ,6  ,7  ,8  ,9,
+                8 , 9 ,10 ,11 ,12 ,13,
+                12, 13, 14, 15, 16, 17,
+                16, 17, 18, 19, 20, 21,
+                20, 21, 22, 23, 24, 25,
+                24, 25, 26, 27, 28, 29,
+                28, 29, 30, 31, 32, 1]
     def __init__(self):
-        """for i in range(64):
-            self.permStartArr.append(i)"""
         pass
+    def getBit(self, number, i):
+            return (number >> i) & 1
+    def setBit(self, number, i, value):            
+            if value == 1:
+                # Устанавливаем бит в 1
+                return number | (1 << i)
+            else:
+                # Устанавливаем бит в 0
+                return number & ~(1 << i)
     def convert_to_block64(self, bytes):
         while len(bytes) % 4 != 0: # Fill until divideble by 64 bits (8 * 4)
             bytes.append(0x0)
@@ -42,19 +57,10 @@ class DES:
             bytes.append((blocks[i] >> 24) % 256)
         return bytes
     def permutate(self, block64, permArr):
-        def getBit(number, i):
-            return (number >> i) & 1
-        def setBit(number, i, value):            
-            if value == 1:
-                # Устанавливаем бит в 1
-                return number | (1 << i)
-            else:
-                # Устанавливаем бит в 0
-                return number & ~(1 << i)
         blockNew = 0
-        for i in range(64):
-            bit = getBit(block64, i)
-            blockNew = setBit(blockNew, permArr[i] - 1, bit)
+        for i in range(len(permArr)):
+            bit = self.getBit(block64, i)
+            blockNew = self.setBit(blockNew, permArr[i] - 1, bit)
         
         return blockNew
 
@@ -64,27 +70,68 @@ class DES:
     def permutationEnd(self, block64):
         blockNew = self.permutate(block64, self.permEndArr)
         return blockNew
+    def split32(self, block):
+        return [(block >> 32) & (2 ** 32 - 1), block & (2 ** 32 - 1)]
+    def concatenate32(sekf, blocks):
+        return (blocks[0] << 32) | (blocks[1])
+    def expand32_to_48(self, block32):
+        result = 0
+        for i in range(48):
+            bitToFetch = self.expandArr[i] -1
+            bit = self.getBit(block32, bitToFetch)
+            result = self.setBit(result, bitToFetch, bit)
+        return result
+    def theFFunction(self, block32, key):
+        expand = self.expand32_to_48(block32)
+        return block32
     def round(self, block64, roundKey):
-        pass 
-    def finalSwap(self, block64):
-        pass
-    def encrypt(self, plain_text):
+        left, right = self.split32(block64)
+        # initial
+        #newBLock = self.concatenate32([left, right])
+        right = left ^ self.theFFunction(right, roundKey)
+        newBLock = self.concatenate32([right, left])
+        return newBLock
+    def finalSwapRound(self, block64):
+        left, right = self.split32(block64)
+        newBLock = self.concatenate32([right, left])
+        return  newBLock
+    def retRoundKeys(self, keyRaw): # DEBUG
+        keys = []
+        for i in range(16):
+            keys.append(i + 3)
+        return keys
+    def encrypt(self, plain_text, keyRaw):
         plainBytes = bytearray(plain_text, "utf-8")
+        keyBytes = bytearray(keyRaw, "utf-8")
         bytes64 = self.convert_to_block64(plainBytes)
 
         for i in range(len(bytes64)):
             bytes64[i] = self.permutationStart(bytes64[i])
 
         for i in range(len(bytes64)):
+            keyRound = self.retRoundKeys(keyBytes)
+            for round_i in range(0,16):                
+                #print("bytes64[i]" + " i " + str(round_i) + " " + hex(bytes64[i]))
+                bytes64[i] = self.round(bytes64[i], keyRound[round_i])
+            bytes64[i] = self.finalSwapRound(bytes64[i])
+
+        for i in range(len(bytes64)):
             bytes64[i] = self.permutationEnd(bytes64[i])
 
         bytesOut = self.convert_from_block64(bytes64)
         return bytes(bytesOut)
-    def decrypt(self, cypher_text):
+    def decrypt(self, cypher_text, keyRaw):
         bytes64 = self.convert_to_block64(cypher_text)
+        keyBytes = bytearray(keyRaw, "utf-8")
 
         for i in range(len(bytes64)):
             bytes64[i] = self.permutationStart(bytes64[i])
+
+        for i in range(len(bytes64)):
+            keyRound = self.retRoundKeys(keyBytes)
+            for round_i in reversed(range(16)):                
+                bytes64[i] = self.round(bytes64[i], keyRound[round_i])
+            bytes64[i] = self.finalSwapRound(bytes64[i])
 
         for i in range(len(bytes64)):
             bytes64[i] = self.permutationEnd(bytes64[i])
@@ -124,14 +171,16 @@ def tests():
         print("error 4")"""
     #print(bin(testDes.perm(0b111, testDes.permStartArr)))
     #print(bin(testDes.perm(0b111 << 64 - 3, testDes.permStartArr)))
+    print(bin(testDes.expand32_to_48(0b1111_0000_1111_0000_1111)))
     return
 
 if __name__ == '__main__':
     tests()
     testDes = DES()
     plain = "Hello world!"
+    key = "1234"
     print(plain)
-    encr = testDes.encrypt(plain)
+    encr = testDes.encrypt(plain,key)
     print(encr)
-    plainBack = testDes.decrypt(encr)
+    plainBack = testDes.decrypt(encr,key)
     print(plainBack)
