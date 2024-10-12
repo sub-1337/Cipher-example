@@ -164,7 +164,8 @@ class DES:
             sboxRes |= self.sboxPart(block6, sboxNumber)
         return sboxRes 
     def ptable(self, block32):
-        return block32
+        result = self.permutate(block32, self.ptableArr)
+        return result
     def theFFunction(self, block32, key):
         expand = self.expand32_to_48(block32)
         xor = expand ^ key
