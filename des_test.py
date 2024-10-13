@@ -18,9 +18,9 @@ class DES:
     35, 3, 43, 11, 51, 19, 59, 27,
     34, 2, 42, 10, 50, 18, 58, 26,
     33, 1, 41, 9,  49, 17, 57, 25]
-    expandArr = [32, 1 ,2  ,3  ,4 , 5,
-                4 , 5 ,6  ,7  ,8  ,9,
-                8 , 9 ,10 ,11 ,12 ,13,
+    expandArr = [32, 1, 2, 3, 4, 5,
+                4, 5, 6, 7, 8, 9,
+                8, 9, 10, 11, 12, 13,
                 12, 13, 14, 15, 16, 17,
                 16, 17, 18, 19, 20, 21,
                 20, 21, 22, 23, 24, 25,
@@ -92,6 +92,10 @@ class DES:
 [2	,1	,14	,7,	4	,10	,8	,13	,15	,12	,9	,0	,3	,5	,6	,11] 
 ]
 ]
+    shiftKeyCountArr = [1,1,2,2,2,2,2,2,1,2,2,2,2,2,2,1]
+    keyCompressionFinalArr = [14	,17	,11	,24	,1	,5	,3	,28	,15	,6	,21 ,10	,23	,19	,12 ,4, 
+                            26	,8	,16	,7	,27	,20	,13	,2	,41	,52	,31 ,37	,47	,55	,30 ,40,
+                            51	,45	,33	,48	,44	,49	,39	,56	,34	,53	,46 ,42	,50	,36	,29 ,32]
     def __init__(self):
         pass
     def getBit(self, number, i):
@@ -104,14 +108,18 @@ class DES:
                 # Устанавливаем бит в 0
                 return number & ~(1 << i)
     def convert_to_block64(self, bytes):
-        while len(bytes) % 4 != 0: # Fill until divideble by 64 bits (8 * 4)
+        while len(bytes) % 8 != 0: # Fill until divideble by 64 bits (8 * 4)
             bytes.append(0x0)
         bytes64 = []
-        for i in range(0, len( bytes), 4):
-            block64 =  bytes[0 + i] 
+        for i in range(0, len( bytes), 8):
+            block64 =   bytes[0 + i] 
             block64 +=  bytes[1 + i] << 8
             block64 +=  bytes[2 + i] << 16
             block64 +=  bytes[3 + i] << 24
+            block64 +=  bytes[4 + i] << 32
+            block64 +=  bytes[5 + i] << 40
+            block64 +=  bytes[6 + i] << 48
+            block64 +=  bytes[7 + i] << 56
             bytes64.append(block64)
         return bytes64
     def convert_from_block64(self, blocks):
@@ -121,6 +129,11 @@ class DES:
             bytes.append((blocks[i] >> 8) % 256)
             bytes.append((blocks[i] >> 16) % 256)
             bytes.append((blocks[i] >> 24) % 256)
+            
+            bytes.append((blocks[i] >> 32) % 256)
+            bytes.append((blocks[i] >> 40) % 256)
+            bytes.append((blocks[i] >> 48) % 256)
+            bytes.append((blocks[i] >> 56) % 256)
         return bytes
     def permutate(self, block64, permArr):
         blockNew = 0
@@ -140,13 +153,17 @@ class DES:
         return [(block >> 32) & (2 ** 32 - 1), block & (2 ** 32 - 1)]
     def concatenate32(sekf, blocks):
         return (blocks[0] << 32) | (blocks[1])
+    def split28(self, block):
+        return [(block >> 28) & (2 ** 28 - 1), block & (2 ** 28 - 1)]
+    def concatenate28(self, blocks):
+        return (blocks[0] << 28) | (blocks[1])
     def expand32_to_48(self, block32):
         result = 0
         for i in range(48):
             bitToFetch = self.expandArr[i] -1
             bit = self.getBit(block32, bitToFetch)
             result = self.setBit(result, i, bit)
-        return result
+        return block32 #DEBUG
     def sboxPart(self, block6, sboxNumber):
         smaller_axis = (self.getBit(block6, 5) << 1 ) | (self.getBit(block6, 0))
         greater_axis = (self.getBit(block6, 1) << 0 ) | (self.getBit(block6, 2) << 1) | \
@@ -164,29 +181,64 @@ class DES:
             sboxRes |= self.sboxPart(block6, sboxNumber)
         return sboxRes 
     def ptable(self, block32):
-        result = self.permutate(block32, self.ptableArr)
+        result = self.permutate(block32, self.ptableArr) #FIXME
         return result
     def theFFunction(self, block32, key):
         expand = self.expand32_to_48(block32)
         xor = expand ^ key
         sbox = self.sbox(xor)
         ptable = self.ptable(sbox)
-        return ptable
+        return xor# DEBUG
     def round(self, block64, roundKey):
         left, right = self.split32(block64)
         # initial
         #newBLock = self.concatenate32([left, right])
-        right = left ^ self.theFFunction(right, roundKey)
+        theFFunction = self.theFFunction(right, roundKey)
+        right = left ^ theFFunction
         newBLock = self.concatenate32([right, left])
         return newBLock
     def finalSwapRound(self, block64):
         left, right = self.split32(block64)
         newBLock = self.concatenate32([right, left])
         return  newBLock
+    def parityDropKey(self, block64):
+        result = 0
+        n = 0
+        for i in range(64):
+            if i % 8 != 7:
+                bit = self.getBit(block64, i)
+                result = self.setBit(result, n, bit)
+                n += 1
+            else:
+                next
+        return result
+    def left_circular_shift(self, value, shift, bit_length):
+        shifted = ((value << shift) & ((1 << bit_length) - 1)) | (value >> (bit_length - shift))
+        return shifted
+    def permChoiceKey(self, key64):
+        result = 0
+        result = self.parityDropKey(key64)
+        return result
+    def keyCompressionFinal(self, key56):
+        result = 0
+        for i in range(48):
+            i_bit_to_put = self.keyCompressionFinalArr[i]
+            bit = self.getBit(key56, i_bit_to_put)
+            result = self.setBit(result, i, bit)
+        return result
     def retRoundKeys(self, keyRaw): # DEBUG
         keys = []
+        key64 = self.convert_to_block64(keyRaw)[0]
+        key56 = self.permChoiceKey(key64)
+        key_C28, key_D28 = self.split28(key56)   
         for i in range(16):
-            keys.append(i + 3)
+            bits_to_shift = self.shiftKeyCountArr[i]                                
+            key_C28 = self.left_circular_shift(key_C28,bits_to_shift,28)            
+            key_D28 = self.left_circular_shift(key_D28,bits_to_shift,28)
+            keyNew56 = self.concatenate28([key_C28, key_D28])
+            keyRound48 = self.keyCompressionFinal(keyNew56)
+            #key56 = self.left_circular_shift(key56,bits_to_shift,56)
+            keys.append(keyRound48)
         return keys
     def encrypt(self, plain_text, keyRaw):
         plainBytes = bytearray(plain_text, "utf-8")
@@ -225,7 +277,10 @@ class DES:
             bytes64[i] = self.permutationEnd(bytes64[i])
 
         bytesOut = self.convert_from_block64(bytes64)
-        return bytesOut.decode("utf-8")
+        try:
+            return bytesOut.decode("utf-8")
+        except:
+            return "ERROR"
 
 def tests():
     testDes = DES()
