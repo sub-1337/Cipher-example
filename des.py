@@ -18,14 +18,24 @@ class DES:
     35, 3, 43, 11, 51, 19, 59, 27,
     34, 2, 42, 10, 50, 18, 58, 26,
     33, 1, 41, 9,  49, 17, 57, 25]
-    expandArr = [32, 1, 2, 3, 4, 5,
-                4, 5, 6, 7, 8, 9,
-                8, 9, 10, 11, 12, 13,
-                12, 13, 14, 15, 16, 17,
-                16, 17, 18, 19, 20, 21,
-                20, 21, 22, 23, 24, 25,
-                24, 25, 26, 27, 28, 29,
-                28, 29, 30, 31, 32, 1]
+    # Standard expansion permutation
+    expandArr_1 = [
+    32,  1,  2,  3,  4,  5,
+     4,  5,  6,  7,  8,  9,
+     8,  9, 10, 11, 12, 13,
+    12, 13, 14, 15, 16, 17,
+    16, 17, 18, 19, 20, 21,
+    20, 21, 22, 23, 24, 25,
+    24, 25, 26, 27, 28, 29,
+    28, 29, 30, 31, 32,  1
+    ]
+    # Working expansion
+    expandArr_2 = [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+    ]
+    expandArr  = expandArr_1
     ptableArr = [16, 7, 20, 21,
                     29, 12, 28, 17,
                     1 , 15, 23, 26,
@@ -157,19 +167,16 @@ class DES:
     def concatenate28(self, blocks):
         return (blocks[0] << 28) | (blocks[1])
     def expand32_to_48(self, block32):
-        """result = 0
+        result = 0
+        """for i in range(48):
+            bit_to_fetch = self.expandArr[i] - 1
+            bit = self.getBit(block32, bit_to_fetch)
+            result = self.setBit(result, i, bit)"""
         for i in range(48):
-            bitToFetch = self.expandArr[i] -1
-            bit = self.getBit(block32, bitToFetch)
+            bit_to_fetch = self.expandArr[i] - 1
+            bit = self.getBit(block32, bit_to_fetch)
             result = self.setBit(result, i, bit)
-        return result #DEBUG"""
-        output_48bit = 0
-        for i in range(48):
-            # Извлекаем бит, указанный в таблице E-бокса, и помещаем его в соответствующую позицию
-            bit_position = self.expandArr[i] - 1  # E-бокс использует 1-индексацию, а Python работает с 0-индексацией
-            bit_value = (block32 >> bit_position) & 1  # Извлекаем бит с позиции bit_position
-            output_48bit = (output_48bit << 1) | bit_value  # Добавляем этот бит в выходное число
-        return output_48bit
+        return result
     def sbox(self, block48):
         sboxRes = 0
         # Делим входное 48-битное число на 8 групп по 6 бит
@@ -211,7 +218,7 @@ class DES:
             print("error - xor overflow")
 
         xor = expand ^ key
-        
+        xor = block32 ^ key
         #xor = block32 ^ key
         #print("xor sz " + str(len(str(bin(xor))) - 2))
         #DEBUG
@@ -230,14 +237,16 @@ class DES:
         if (len(str(bin(ptable))) - 2) > 32:
             print("error - ptable overflow")
 
-        return xor# DEBUG
+        return ptable # DEBUG
     def round(self, block64, roundKey):
         left, right = self.split32(block64)
         # initial
         #newBLock = self.concatenate32([left, right])
         #print(hex(roundKey))
         theFFunction = self.theFFunction(right, roundKey)
-        right = left ^ theFFunction
+        if (len(str(bin(theFFunction))) - 2) > 32:
+            print("error - theFFunction overflow")
+        right = left ^ theFFunction 
         newBLock = self.concatenate32([right, left])
         return newBLock
     def finalSwapRound(self, block64):
@@ -269,7 +278,7 @@ class DES:
             bit = self.getBit(key56, i_bit_to_put)
             result = self.setBit(result, i, bit)
         return result
-    def retRoundKeys(self, keyRaw): # DEBUG
+    def retRoundKeys(self, keyRaw):
         keys = []
         key64 = self.convert_to_block64(keyRaw)[0]
         key56 = self.permChoiceKey(key64)
@@ -327,47 +336,21 @@ class DES:
 
 def tests():
     testDes = DES()
-    res = testDes.expand32_to_48(0x12345678)
-    print("exp: " + str(bin(res)))
-    """res = testDes.perm(0b1010, [0, 2,1,3])
-    if (res != 0b1100):
-        print("error 1")
+    block = 0x5951f9e310fdfb00
+    key = 0x490085ff1d31
+    resReal = testDes.round(block, key)
+    resReal = testDes.finalSwapRound(resReal)
 
-    res = testDes.perm(0b1111, [0,1,2,3])
-    if (res != 0b1111):
-        print("error 2")
-
-    res = testDes.perm(0b1000, [3,2,1,0])
-    if (res != 0b0001):
-        print("error 3")
-
-    res = testDes.perm(0b1100, [3,2,1,0])
-    if (res != 0b0011):
-        print("error 3")
-"""
-    """t1 = [  1, 3, 2, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0]
-    
-    res = testDes.perm(0b110, t1)
-    if (res != 0b1010):
-        print("error 4")"""
-    #print(bin(testDes.perm(0b111, testDes.permStartArr)))
-    #print(bin(testDes.perm(0b111 << 64 - 3, testDes.permStartArr)))
-    #print(bin(testDes.expand32_to_48(0b1111_1111_1111_0000_1111_1111_1111_0000)))
-    #print(bin(testDes.expand32_to_48(0b1111_0000_1111_0000_1111)))
+    blockBack = testDes.round(resReal, key)
+    blockBack = testDes.finalSwapRound(blockBack)
+    print( "Block same ", str(blockBack == block))
     return
 
 if __name__ == '__main__':
     tests()
     testDes = DES()
     plain = "Hello world!"
-    key = "1234567"
+    key = "Secret"
     print(plain)
     encr = testDes.encrypt(plain,key)
     print(encr)
