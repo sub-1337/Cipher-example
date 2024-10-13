@@ -157,27 +157,45 @@ class DES:
     def concatenate28(self, blocks):
         return (blocks[0] << 28) | (blocks[1])
     def expand32_to_48(self, block32):
-        result = 0
+        """result = 0
         for i in range(48):
             bitToFetch = self.expandArr[i] -1
             bit = self.getBit(block32, bitToFetch)
             result = self.setBit(result, i, bit)
-        return result #DEBUG
-    def sboxPart(self, block6, sboxNumber):
-        smaller_axis = (self.getBit(block6, 5) << 1 ) | (self.getBit(block6, 0))
-        greater_axis = (self.getBit(block6, 1) << 0 ) | (self.getBit(block6, 2) << 1) | \
-                       (self.getBit(block6, 3) << 2 ) | (self.getBit(block6, 4) << 3 )
-        res = self.sboxArr[sboxNumber][smaller_axis][greater_axis]
-        return res
+        return result #DEBUG"""
+        output_48bit = 0
+        for i in range(48):
+            # Извлекаем бит, указанный в таблице E-бокса, и помещаем его в соответствующую позицию
+            bit_position = self.expandArr[i] - 1  # E-бокс использует 1-индексацию, а Python работает с 0-индексацией
+            bit_value = (block32 >> bit_position) & 1  # Извлекаем бит с позиции bit_position
+            output_48bit = (output_48bit << 1) | bit_value  # Добавляем этот бит в выходное число
+        return output_48bit
     def sbox(self, block48):
         sboxRes = 0
-        for i in range(0,48,6):
-            block6 = (self.getBit(block48, 0 + i) << 0 ) | (self.getBit(block48,  1 + i) << 1) | \
-                    (self.getBit(block48,  2 + i) << 2 )  | (self.getBit(block48, 3 + i) << 3 ) | \
-                    (self.getBit(block48,  4 + i) << 4 )  | (self.getBit(block48, 5 + i) << 5 )
-            sboxNumber = (i // 6)
-            sboxRes = sboxRes << 4
-            sboxRes |= self.sboxPart(block6, sboxNumber)
+        # Делим входное 48-битное число на 8 групп по 6 бит
+        sbox_outputs = []
+        for i in range(8):
+            # Извлекаем 6 бит для каждого S-бокса
+            group_6bit = (block48 >> (42 - 6 * i)) & 0b111111
+            
+            # Определяем строку (первые и последние биты)
+            row = ((group_6bit & 0b100000) >> 4) | (group_6bit & 0b000001)
+            
+            # Определяем столбец (средние 4 бита)
+            col = (group_6bit & 0b011110) >> 1
+            
+            # Получаем 4-битный результат из соответствующего S-бокса
+            sbox_output = self.sboxArr[i][row][col]
+            
+            # Добавляем результат в список
+            sbox_outputs.append(sbox_output)
+        
+        # Объединяем результаты из всех S-боксов в одно 32-битное число
+        sboxRes = 0
+        for sbox_output in sbox_outputs:
+            sboxRes = (sboxRes << 4) | sbox_output
+        if (len(str(bin(sboxRes))) - 2) > 32:
+            print("error - sbox overflow")
         return sboxRes 
     def ptable(self, block32):
         result = 0 #self.permutate(block32, self.ptableArr) #FIXME
@@ -193,7 +211,9 @@ class DES:
             print("error - xor overflow")
 
         xor = expand ^ key
-
+        
+        #xor = block32 ^ key
+        #print("xor sz " + str(len(str(bin(xor))) - 2))
         #DEBUG
         if (len(str(bin(xor))) - 2) > 48:
             print("error - xor overflow")
@@ -210,7 +230,7 @@ class DES:
         if (len(str(bin(ptable))) - 2) > 32:
             print("error - ptable overflow")
 
-        return ptable# DEBUG
+        return xor# DEBUG
     def round(self, block64, roundKey):
         left, right = self.split32(block64)
         # initial
@@ -307,6 +327,8 @@ class DES:
 
 def tests():
     testDes = DES()
+    res = testDes.expand32_to_48(0x12345678)
+    print("exp: " + str(bin(res)))
     """res = testDes.perm(0b1010, [0, 2,1,3])
     if (res != 0b1100):
         print("error 1")
@@ -345,7 +367,7 @@ if __name__ == '__main__':
     tests()
     testDes = DES()
     plain = "Hello world!"
-    key = "1234"
+    key = "1234567"
     print(plain)
     encr = testDes.encrypt(plain,key)
     print(encr)

@@ -70,6 +70,6 @@ def sbox_substitution(input_48bit):
     return output_32bit
 
 # Пример использования
-input_48bit = 0x123456789ABC  # Пример 48-битного числа
+input_48bit = 0b1111_1111_0000_1111#0x123456789ABC  # Пример 48-битного числа
 output_32bit = sbox_substitution(input_48bit)
 print(f'S-box output: {bin(output_32bit)[2:].zfill(32)}')
