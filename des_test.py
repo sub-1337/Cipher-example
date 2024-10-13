@@ -142,7 +142,6 @@ class DES:
             blockNew = self.setBit(blockNew, permArr[i] - 1, bit)
         
         return blockNew
-
     def permutationStart(self, block64):
         blockNew = self.permutate(block64, self.permStartArr)
         return blockNew
@@ -163,7 +162,7 @@ class DES:
             bitToFetch = self.expandArr[i] -1
             bit = self.getBit(block32, bitToFetch)
             result = self.setBit(result, i, bit)
-        return block32 #DEBUG
+        return result #DEBUG
     def sboxPart(self, block6, sboxNumber):
         smaller_axis = (self.getBit(block6, 5) << 1 ) | (self.getBit(block6, 0))
         greater_axis = (self.getBit(block6, 1) << 0 ) | (self.getBit(block6, 2) << 1) | \
@@ -181,18 +180,42 @@ class DES:
             sboxRes |= self.sboxPart(block6, sboxNumber)
         return sboxRes 
     def ptable(self, block32):
-        result = self.permutate(block32, self.ptableArr) #FIXME
+        result = 0 #self.permutate(block32, self.ptableArr) #FIXME
+        for i in range(32):
+            i_bit_to_Set = self.ptableArr[i] - 1
+            bit = self.getBit(block32, i_bit_to_Set)
+            result = self.setBit(result, i, bit)
         return result
     def theFFunction(self, block32, key):
         expand = self.expand32_to_48(block32)
+        #DEBUG
+        if (len(str(bin(expand))) - 2) > 48:
+            print("error - xor overflow")
+
         xor = expand ^ key
+
+        #DEBUG
+        if (len(str(bin(xor))) - 2) > 48:
+            print("error - xor overflow")
+
         sbox = self.sbox(xor)
+
+        #DEBUG
+        if (len(str(bin(sbox))) - 2) > 32:
+            print("error - sbox overflow")
+
         ptable = self.ptable(sbox)
-        return xor# DEBUG
+        #DEBUG
+
+        if (len(str(bin(ptable))) - 2) > 32:
+            print("error - ptable overflow")
+
+        return ptable# DEBUG
     def round(self, block64, roundKey):
         left, right = self.split32(block64)
         # initial
         #newBLock = self.concatenate32([left, right])
+        #print(hex(roundKey))
         theFFunction = self.theFFunction(right, roundKey)
         right = left ^ theFFunction
         newBLock = self.concatenate32([right, left])
